@@ -6,12 +6,13 @@ namespace Mod
 {
     public class PatchHelper
     {
-        public static void PatchMethod(HarmonyInstance harmonyInstance, Type type, string methodName, string resultMethod)
+        public static void PatchMethod(HarmonyInstance harmonyInstance, Type type, string methodName, string resultMethod, Type resultMethodOrigin=null)
         {
+            if (resultMethodOrigin == null) resultMethodOrigin = typeof(PatchesInternal);
             var methodString = type.Name + "." + methodName;
             try {
                 Utils.Log("Patching", methodString, "with", resultMethod);
-                harmonyInstance.Patch(type.GetType().GetMethod(methodName, ((BindingFlags)62)), GetPatch(resultMethod, typeof(PatchesInternal)), null, null);
+                harmonyInstance.Patch(type.GetType().GetMethod(methodName, ((BindingFlags)62)), GetPatch(resultMethod, resultMethodOrigin.GetType()), null, null);
             } catch (Exception ex) {
                 Utils.Log("[ERROR] Unable to patch", methodString, "with", resultMethod, ex.Message.Enclose());
             }
