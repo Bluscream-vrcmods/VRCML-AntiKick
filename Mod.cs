@@ -1,5 +1,8 @@
 ﻿using VRCModLoader;
 using Harmony;
+using VRCTools;
+using VRC.Core;
+using System.Collections.Generic;
 
 namespace Mod
 {
@@ -9,7 +12,7 @@ namespace Mod
         private void OnApplicationStart() {
             AntiKickPatch();
         }
-        public static void AntiKickPatch()
+        private static void AntiKickPatch()
         {
                 var instance = HarmonyInstance.Create("AntiKick");
                 PatchHelper.PatchMethod(instance, typeof(ModerationManager), "KickUserRPC", "KickUserRPC", typeof(Patches));
@@ -17,12 +20,29 @@ namespace Mod
                 PatchHelper.PatchMethod(instance, typeof(ModerationManager), "IsKickedFromWorld", "IsKickedFromWorld", typeof(Patches));
                 Utils.Log("Patched all required methods!");
         }
+        public static void JoinAnotherInstanceOfSameWorld() {
+            var currentWorld = RoomManagerBase.currentRoom;
+            var currentInstance = RoomManagerBase.currentWorldInstance;
+            var newInstance = currentWorld.GetBestInstance(APIUser.CurrentUser.id, new List<string>() { currentInstance.idOnly });
+            VRCSDK2.Networking.GoToRoom(currentWorld.id + ":" + newInstance.idWithTags);
+        }
+
     }
     public class Patches
     {
             private static bool KickUserRPC()
             {
                 Utils.Log("KickUserRPC() called: Someone in the instance tried to kick you!");
+                VRCUiPopupManagerUtils.GetVRCUiPopupManager().ShowStandardPopup("Kicked",
+                "Someone tried to kick you from this instance!\n\nDo you want to switch to another instance of this world?",
+                    "Yes", () => {
+                        VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup();
+                        Mod.JoinAnotherInstanceOfSameWorld();
+                    },
+                    "No", () => {
+                        VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup();
+                    }
+                );
                 return false;
             }
 
@@ -36,6 +56,16 @@ namespace Mod
             private static bool IsKickedFromWorld(bool __result)
             {
                 Utils.Log("IsKickedFromWorld() called!");
+                VRCUiPopupManagerUtils.GetVRCUiPopupManager().ShowStandardPopup("Kicked",
+                "You got kicked from this instance previously\n\nAre you sure you want to join?",
+                    "Yes", () => {
+                        VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup();
+                    },
+                    "No", () => {
+                        VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup();
+                        Mod.JoinAnotherInstanceOfSameWorld();
+                    }
+                );
                 __result = false;
                 return false;
             }
